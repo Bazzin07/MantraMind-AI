@@ -1430,57 +1430,74 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        type: BottomNavigationBarType.fixed, // This fixes spacing issues with 4+ items
-        selectedFontSize: 12, // Reduce font size to avoid overflow
-        unselectedFontSize: 10, // Reduce font size to avoid overflow
-        iconSize: 22, // Slightly smaller icons
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          
-          // Handle navigation based on bottom nav selection
-          if (index == 1) {
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => AIChatScreen()),
-            );
-          } else if (index == 2) {
-            // Navigate to Analytics or Progress screen
-            // You can implement this screen later
-          } else if (index == 3) {
-            // Navigate to Features screen
-            Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => const FeaturesScreen()),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'AI Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Progress',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.grid_view),
-            label: 'Features',
-          ),
-        ],
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          canvasColor: Colors.white,
+          primaryColor: Theme.of(context).primaryColor,
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          type: BottomNavigationBarType.fixed,
+          selectedFontSize: 12,
+          unselectedFontSize: 10,
+          iconSize: 22,
+          elevation: 8,
+          selectedItemColor: Theme.of(context).primaryColor,
+          unselectedItemColor: Colors.grey[600],
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+            
+            // Handle navigation based on bottom nav selection
+            if (index == 1) {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => AIChatScreen()),
+              );
+            } else if (index == 2) {
+              // Navigate to Analytics or Progress screen
+            } else if (index == 3) {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const FeaturesScreen()),
+              );
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+              tooltip: '',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat),
+              label: 'AI Chat',
+              tooltip: '',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.analytics),
+              label: 'Progress',
+              tooltip: '',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view),
+              label: 'Features',
+              tooltip: '',
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSummaryCards() {
+    // Calculate completion percentage for the progress bar
+    int totalActivities = recommendedTasks.length;
+    int completedActivities = recommendedTasks.where((task) => 
+      task['isCompleted'] == true).length;
+    double completionPercentage = totalActivities > 0 ? completedActivities / totalActivities : 0.0;
+    
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -1505,7 +1522,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+                    padding: const EdgeInsets.all(14.0), // Even padding
                     child: Column(
                       children: [
                         Row(
@@ -1514,25 +1531,29 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                             Icon(Icons.local_fire_department, 
                                 color: Colors.orange,
                                 size: 22),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                'Current Streak',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 4), // Reduced spacing
+                            Text(
+                              'Streak',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Text(
-                          '$streakCount days',
-                          style: TextStyle(
-                            fontSize: 22,
+                          '$streakCount',
+                          style: const TextStyle(
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'days',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
@@ -1549,37 +1570,42 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+                    padding: const EdgeInsets.all(14.0), // Even padding
                     child: Column(
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.center, // Center content
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.trending_up, 
                                 color: Colors.green,
-                                size: 22), // Slightly smaller icon
-                            const SizedBox(width: 6), // Reduced spacing
+                                size: 22),
+                            const SizedBox(width: 4),
                             Text(
                               'Progress',
                               style: TextStyle(
-                                fontSize: 14, // Smaller font size
+                                fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10), // Reduced spacing
+                        const SizedBox(height: 8),
                         CircularPercentIndicator(
-                          radius: 35.0, // Slightly smaller indicator
-                          lineWidth: 7.0, // Thinner line
+                          radius: 33.0, // Slightly smaller for better fit
+                          lineWidth: 6.0,
                           percent: progressPercentage,
                           center: Text(
                             '${(progressPercentage * 100).round()}%',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 13
+                            ),
                           ),
                           progressColor: Colors.green,
                           backgroundColor: Colors.green.withOpacity(0.2),
                           circularStrokeCap: CircularStrokeCap.round,
+                          animation: true,
+                          animationDuration: 800,
                         ),
                       ],
                     ),
@@ -1589,44 +1615,82 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
             ],
           ),
           
-          // Add overall progress bar below cards
-          const SizedBox(height: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Activity Completion',
+          // Weekly Activity Progress Bar
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Weekly Activity Completion',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${(progressPercentage * 100).round()}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearPercentIndicator(
+                  percent: progressPercentage,
+                  lineHeight: 8,
+                  backgroundColor: Colors.grey.withOpacity(0.1),
+                  progressColor: Colors.green,
+                  barRadius: const Radius.circular(8),
+                  padding: EdgeInsets.zero,
+                  animation: true,
+                  animationDuration: 800,
+                  leading: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_circle_outline, color: Colors.green, size: 14),
+                  ),
+                  trailing: Text(
+                    '$completedActivities/$totalActivities tasks',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey[800],
+                      color: Colors.grey[600],
                     ),
                   ),
-                  Text(
-                    '${(progressPercentage * 100).round()}%',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearPercentIndicator(
-                percent: progressPercentage,
-                lineHeight: 10,
-                backgroundColor: Colors.grey.withOpacity(0.2),
-                progressColor: Colors.green,
-                barRadius: const Radius.circular(10),
-                padding: EdgeInsets.zero,
-                animation: true,
-                animationDuration: 1000,
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
