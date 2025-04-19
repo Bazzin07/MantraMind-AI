@@ -12,54 +12,68 @@ class SpeechToTextService {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
   bool _isInitialized = false;
+  bool _isSpeaking = false;
   
-  // Add streaming controllers
-  final StreamController<String> _textStreamController = StreamController.broadcast();
-  final StreamController<bool> _listeningStreamController = StreamController.broadcast();
+  // Streaming controllers
+  final StreamController<String> _textStreamController = StreamController<String>.broadcast();
+  final StreamController<bool> _listeningStreamController = StreamController<bool>.broadcast();
+  final StreamController<String> _errorStreamController = StreamController<String>.broadcast();
   
+  // Language mapping for speech recognition
+  final Map<String, String> _languageCodes = {
+    'English': 'en_US',
+    'Hindi': 'hi_IN',
+    'Tamil': 'ta_IN',
+    'Telugu': 'te_IN',
+    'Kannada': 'kn_IN',
+    'Malayalam': 'ml_IN',
+    'Bengali': 'bn_IN',
+    'Marathi': 'mr_IN',
+    'Gujarati': 'gu_IN',
+    'Punjabi': 'pa_IN',
+    'Odia': 'or_IN',
+    'Assamese': 'as_IN',
+    'Urdu': 'ur_IN',
+  };
+  
+  // Expose streams
   Stream<String> get textStream => _textStreamController.stream;
   Stream<bool> get listeningStream => _listeningStreamController.stream;
-
-  // Add error stream
-  final StreamController<String> _errorStreamController = StreamController.broadcast();
   Stream<String> get errorStream => _errorStreamController.stream;
   
-  // Add partial results support
-  String _currentPartialText = '';
-  
   Future<bool> initialize() async {
-    if (_isInitialized) return true;
-    
-    _isInitialized = await _speech.initialize(
-      onError: (error) {
-        print('Speech recognition error: $error');
-        _errorStreamController.add(error.errorMsg);
-        _listeningStreamController.add(false);
-      },
-      onStatus: (status) {
-        print('Speech recognition status: $status');
-        // Update listening status based on speech status
-        if (status == 'notListening' || status == 'done') {
-          _listeningStreamController.add(false);
-          
-          // If we have partial text when stopping, send it as final
-          if (_currentPartialText.isNotEmpty) {
-            _textStreamController.add(_currentPartialText);
+    try {
+      _isInitialized = await _speech.initialize(
+        onError: (error) {
+          print('Speech recognition error: ${error.errorMsg}');
+          _errorStreamController.add(error.errorMsg);
+        },
+        onStatus: (status) {
+          print('Speech recognition status: $status');
+          if (status == 'done' || status == 'notListening') {
+            _listeningStreamController.add(false);
           }
-        } else if (status == 'listening') {
-          _listeningStreamController.add(true);
-        }
-      },
-    );
-
-    // Also initialize TTS
-    await _flutterTts.setLanguage('en-US');
-    await _flutterTts.setPitch(1.0);
-    await _flutterTts.setSpeechRate(0.5);
-    
-    return _isInitialized;
+        },
+        debugLogging: true,
+      );
+      
+      // Initialize TTS
+      await _flutterTts.setLanguage('en-US');
+      await _flutterTts.setSpeechRate(0.5);
+      await _flutterTts.setVolume(1.0);
+      
+      _flutterTts.setCompletionHandler(() {
+        _isSpeaking = false;
+      });
+      
+      return _isInitialized;
+    } catch (e) {
+      print('Error initializing speech service: $e');
+      _errorStreamController.add("Speech initialization error: $e");
+      return false;
+    }
   }
-
+  
   Future<void> startListening({
     required String selectedLanguage,
     VoidCallback? onListeningStarted,
@@ -68,109 +82,130 @@ class SpeechToTextService {
     if (!_isInitialized) {
       final initialized = await initialize();
       if (!initialized) {
-        print('Could not initialize speech recognition');
-        _errorStreamController.add('Failed to initialize speech recognition');
+        _errorStreamController.add("Failed to initialize speech recognition");
         return;
       }
     }
-
-    // Reset current partial text
-    _currentPartialText = '';
     
-    // Map language names to BCP-47 language codes
-    final String languageCode = _getLanguageCode(selectedLanguage);
+    // Stop any ongoing listening
+    if (_speech.isListening) {
+      await _speech.stop();
+      await Future.delayed(Duration(milliseconds: 200)); // Short delay to ensure proper reset
+    }
     
-    if (await _speech.hasPermission && _isInitialized) {
+    try {
+      final localeId = _languageCodes[selectedLanguage] ?? 'en_US';
+      print('Starting speech recognition in language: $selectedLanguage (locale: $localeId)');
+      
       await _speech.listen(
-        onResult: (SpeechRecognitionResult result) {
-          print('Speech result: ${result.recognizedWords}, final: ${result.finalResult}');
-          
-          // Handle both partial and final results
+        onResult: (result) {
+          print('Recognition result: ${result.recognizedWords} (final: ${result.finalResult})');
           if (result.finalResult) {
-            // Final result - clean any trailing ellipsis that might have been added
-            final cleanText = result.recognizedWords.replaceAll(' ...', '');
-            _textStreamController.add(cleanText);
-            _currentPartialText = ''; // Clear partial text
-            
-            if (onListeningFinished != null) {
-              onListeningFinished();
-            }
+            _textStreamController.add(result.recognizedWords);
+            if (onListeningFinished != null) onListeningFinished();
           } else {
-            // Update partial text - store without ellipsis
-            _currentPartialText = result.recognizedWords;
-            // Send with ellipsis for UI display
-            _textStreamController.add('${result.recognizedWords} ...');
+            _textStreamController.add(result.recognizedWords + " ...");
           }
         },
-        localeId: languageCode,
-        listenMode: stt.ListenMode.confirmation,
-        cancelOnError: false,
-        partialResults: true, // Enable partial results
-        listenFor: const Duration(seconds: 60), // Increased from 30 seconds
-        pauseFor: const Duration(seconds: 5), // Increased from 3 seconds
+        localeId: localeId,
+        listenFor: Duration(seconds: 30),
+        pauseFor: Duration(seconds: 3),
+        partialResults: true,
+        onSoundLevelChange: (level) {
+          // Sound level can be used for visualizing microphone activity
+          // Level ranges from 0 (silence) to 1 (maximum volume)
+          print('Sound level: $level');
+        },
+        cancelOnError: true,
       );
       
       _listeningStreamController.add(true);
-      
-      if (onListeningStarted != null) {
-        onListeningStarted();
-      }
-    } else {
-      print('Speech recognition permissions denied or not initialized');
-      _errorStreamController.add('Speech recognition permission denied');
+      if (onListeningStarted != null) onListeningStarted();
+    } catch (e) {
+      print('Error starting speech recognition: $e');
+      _errorStreamController.add("Error starting speech recognition: $e");
     }
   }
-
+  
   void stopListening() {
-    if (_isInitialized && _speech.isListening) {
-      // If we have partial text when stopping manually, ensure it's sent as final
-      if (_currentPartialText.isNotEmpty) {
-        _textStreamController.add(_currentPartialText);
-      }
-      
+    if (_speech.isListening) {
+      print('Stopping speech recognition');
       _speech.stop();
       _listeningStreamController.add(false);
     }
   }
-
+  
   Future<void> speak(String text, String language) async {
-    if (text.isEmpty) return;
-    await _flutterTts.setLanguage(_getLanguageCode(language));
-    await _flutterTts.speak(text);
+    if (_isSpeaking) {
+      await stopSpeaking();
+      await Future.delayed(Duration(milliseconds: 300));
+    }
+    
+    try {
+      _isSpeaking = true;
+      
+      // Convert language name to language code for TTS
+      String langCode;
+      switch (language) {
+        case 'Hindi': langCode = 'hi-IN'; break;
+        case 'Tamil': langCode = 'ta-IN'; break;
+        case 'Telugu': langCode = 'te-IN'; break;
+        case 'Kannada': langCode = 'kn-IN'; break;
+        case 'Malayalam': langCode = 'ml-IN'; break;
+        case 'Bengali': langCode = 'bn-IN'; break;
+        case 'Marathi': langCode = 'mr-IN'; break;
+        case 'Gujarati': langCode = 'gu-IN'; break;
+        case 'Punjabi': langCode = 'pa-IN'; break;
+        case 'Odia': langCode = 'or-IN'; break;
+        case 'Urdu': langCode = 'ur-PK'; break;
+        default: langCode = 'en-US';
+      }
+      
+      print('Speaking text in $language (code: $langCode)');
+      
+      await _flutterTts.setLanguage(langCode);
+      final result = await _flutterTts.speak(text);
+      
+      if (result != 1) {
+        _errorStreamController.add("Failed to start text-to-speech");
+        _isSpeaking = false;
+      }
+    } catch (e) {
+      print('Error in text-to-speech: $e');
+      _errorStreamController.add("Text-to-speech error: $e");
+      _isSpeaking = false;
+    }
   }
-
+  
   Future<void> stopSpeaking() async {
-    await _flutterTts.stop();
+    if (_isSpeaking) {
+      await _flutterTts.stop();
+      _isSpeaking = false;
+    }
   }
-
+  
   void dispose() {
     stopListening();
-    _flutterTts.stop();
+    stopSpeaking();
     _textStreamController.close();
     _listeningStreamController.close();
     _errorStreamController.close();
   }
-
+  
   bool get isListening => _speech.isListening;
-
-  // Helper method to convert language names to BCP-47 language codes
-  String _getLanguageCode(String language) {
-    final langMap = {
-      'English': 'en-US',
-      'Hindi': 'hi-IN',
-      'Tamil': 'ta-IN',
-      'Telugu': 'te-IN',
-      'Kannada': 'kn-IN',
-      'Malayalam': 'ml-IN',
-      'Bengali': 'bn-IN',
-      'Marathi': 'mr-IN',
-      'Gujarati': 'gu-IN',
-      'Punjabi': 'pa-IN',
-      'Odia': 'or-IN',
-      'Assamese': 'as-IN',
-      'Urdu': 'ur-IN',
-      // Add more languages as needed
-    };
-    return langMap[language] ?? 'en-US';
+  bool get isSpeaking => _isSpeaking;
+  
+  Future<bool> requestPermissions() async {
+    final hasPermission = await _speech.hasPermission;
+    print('Speech recognition permission status: $hasPermission');
+    return hasPermission;
+  }
+  
+  // Get available languages (useful for debugging)
+  Future<List<String>> getAvailableLanguages() async {
+    final locales = await _speech.locales();
+    List<String> languages = locales.map((locale) => '${locale.name} (${locale.localeId})').toList();
+    print('Available languages: $languages');
+    return languages;
   }
 }

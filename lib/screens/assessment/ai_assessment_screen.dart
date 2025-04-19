@@ -1,10 +1,12 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:mantramind/services/supabase_service.dart';
 import 'package:mantramind/services/gemini_service.dart';
-import 'package:mantramind/services/sarvam_service.dart';
 import 'package:mantramind/services/speech_to_text_service.dart';
 import 'package:mantramind/models/assessment_result.dart';
 import 'package:mantramind/screens/assessment/assessment_result_screen.dart';
+import 'package:mantramind/services/supabase_service.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AIAssessmentScreen extends StatefulWidget {
   const AIAssessmentScreen({Key? key}) : super(key: key);
@@ -13,390 +15,300 @@ class AIAssessmentScreen extends StatefulWidget {
   State<AIAssessmentScreen> createState() => _AIAssessmentScreenState();
 }
 
-class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
+class _AIAssessmentScreenState extends State<AIAssessmentScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _userInputController = TextEditingController();
   final List<ChatMessage> _messages = [];
+  final ScrollController _scrollController = ScrollController();
+  final SpeechToTextService _speechService = SpeechToTextService();
+  
+  // UI state variables
   bool _isTyping = false;
   bool _isListening = false;
-  String _selectedLanguage = 'English'; // Default language
-  final SpeechToTextService _speechToTextService = SpeechToTextService();
   bool _speechEnabled = false;
   bool _assessmentInProgress = false;
-  final ScrollController _scrollController = ScrollController();
+  bool _showLanguageSelector = false;
+  bool _isSpeaking = false;
+  int? _speakingMessageIndex;
+  double _soundLevel = 0.0;
+  Timer? _soundLevelTimer;
+  int _assessmentStep = 0;
+  late AnimationController _pulseController;
   
-  final List<String> _availableLanguages = [
-    'English',
-    'Hindi',
-    'Tamil',
-    'Telugu',
-    'Kannada',
-    'Malayalam',
-    'Bengali',
-    'Marathi',
-    'Gujarati',
-    'Punjabi',
-    'Odia',
-    'Assamese',
-    'Urdu'
-  ];
-
-  // UI strings that will change based on language
-  Map<String, String> _uiStrings = {
-    'typingHint': 'Type your response...',
-    'listeningHint': 'Listening...',
-    'sendButton': 'Send',
-    'changeLanguage': 'Change Language',
-    'selectLanguage': 'Select Language',
-    'aiTyping': 'AI is typing...',
-    'errorMessage': 'Sorry, there was an error. Please try again.'
+  // Language support
+  String _selectedLanguage = 'English';
+  final Map<String, String> _languageCodes = {
+    'English': 'en',
+    'Hindi': 'hi',
+    'Tamil': 'ta',
+    'Telugu': 'te',
+    'Kannada': 'kn',
+    'Malayalam': 'ml',
+    'Bengali': 'bn',
+    'Marathi': 'mr',
+    'Gujarati': 'gu',
+    'Punjabi': 'pa',
+    'Odia': 'or',
+    'Assamese': 'as',
+    'Urdu': 'ur',
   };
 
   @override
   void initState() {
     super.initState();
-    _initSpeechRecognition();
-    _updateUIStrings();
     
-    // Test translation functionality
-    _testTranslation().then((_) {
-      // Start assessment after testing
-      _startAssessment();
-    });
+    // Initialize animation controller
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
     
-    // Listen for speech recognition results
-    _speechToTextService.textStream.listen((recognizedText) {
-      if (recognizedText.isNotEmpty) {
-        _userInputController.text = recognizedText;
-        // Auto submit after receiving speech input
-        _handleUserInput(recognizedText);
-      }
-    });
+    // Initialize speech recognition
+    _initializeSpeech();
+    
+    // Start assessment with welcome message
+    _startAssessment();
   }
 
-  Future<void> _testTranslation() async {
-    if (_selectedLanguage == 'English') {
-      // No translation needed for English
-      return;
-    }
+  Future<void> _initializeSpeech() async {
+    _speechEnabled = await _speechService.initialize();
     
-    try {
-      // Test a simple translation to verify the service is working
-      final testResult = await SarvamService.translateText(
-        inputText: 'Hello, how are you?',
-        sourceLanguage: 'English',
-        targetLanguage: _selectedLanguage,
-      );
-      
-      print('Translation test result: $testResult');
-      
-      if (testResult.isEmpty) {
-        print('WARNING: Translation test returned empty result');
-      }
-    } catch (e) {
-      print('Translation service test failed: $e');
-      // Don't throw the error, just log it - we'll still try to start the assessment
-    }
-  }
-
-  void _updateUIStrings() async {
-    if (_selectedLanguage == 'English') {
+    // Listen for recognized text
+    _speechService.textStream.listen((text) {
       setState(() {
-        _uiStrings = {
-          'typingHint': 'Type your response...',
-          'listeningHint': 'Listening...',
-          'sendButton': 'Send',
-          'changeLanguage': 'Change Language',
-          'selectLanguage': 'Select Language',
-          'aiTyping': 'AI is typing...',
-          'errorMessage': 'Sorry, there was an error. Please try again.'
-        };
+        _userInputController.text = text;
       });
-      return;
-    }
+      
+      // Submit text if it's a final result (not ending with ...)
+      if (!text.endsWith('...') && text.isNotEmpty) {
+        _handleUserInput(text);
+      }
+    });
     
-    // Translate UI strings to selected language
-    try {
-      Map<String, String> translatedStrings = Map.from(_uiStrings);
-      
-      for (var key in _uiStrings.keys) {
-        translatedStrings[key] = await SarvamService.translateText(
-         inputText:  _uiStrings[key]!,
-         sourceLanguage:  'English',
-         targetLanguage:  _selectedLanguage,
-        );
-      }
-      
-      if (mounted) {
-        setState(() {
-          _uiStrings = translatedStrings;
-        });
-      }
-    } catch (e) {
-      print('Error translating UI strings: $e');
-    }
-  }
-
-  Future<void> _initSpeechRecognition() async {
-    _speechEnabled = await _speechToTextService.initialize();
-    if (mounted) {
-      setState(() {});
-    }
+    // Listen for listening state changes
+    _speechService.listeningStream.listen((isListening) {
+      setState(() {
+        _isListening = isListening;
+      });
+    });
+    
+    // Listen for errors
+    _speechService.errorStream.listen((error) {
+      _showSnackBar("Speech recognition error: $error");
+    });
+    
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _userInputController.dispose();
-    _speechToTextService.dispose();
     _scrollController.dispose();
+    _pulseController.dispose();
+    _speechService.dispose();
+    _cancelSoundLevelSimulation();
     super.dispose();
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.fromLTRB(20, 0, 20, 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
   Future<void> _startAssessment() async {
     setState(() {
       _isTyping = true;
       _assessmentInProgress = true;
+      _assessmentStep = 1;
     });
 
     try {
-      final initialPrompt = await _getInitialPrompt();
-      print("Original prompt: $initialPrompt"); // Debug
-      
-      // For English, use the prompt directly
-      if (_selectedLanguage == 'English') {
+      // Get initial prompt for assessment
+      final prompt = """
+You are MantraMind's AI mental health assessment assistant. I'd like you to conduct a brief mental health assessment by asking me a series of questions.
+
+Please begin by introducing yourself and asking how I've been feeling emotionally over the past two weeks. Keep your responses conversational, empathetic, and concise (1-3 sentences).
+
+As we progress, ask questions to assess common mental health conditions like anxiety, depression, ADHD, etc. Ask one question at a time.
+
+After 8-10 questions, you will have gathered enough information to provide a preliminary, non-diagnostic assessment. When ready with your assessment, start your response with "ASSESSMENT_COMPLETE:" followed by your analysis.
+""";
+
+      // Get response from Gemini, using language-specific model if needed
+      final response = await GeminiService.getResponse(
+        prompt, 
+        "You are a mental health assessment assistant",
+        language: _selectedLanguage != 'English' ? _languageCodes[_selectedLanguage] ?? 'en' : 'en',
+      );
+
+      if (mounted) {
         setState(() {
           _messages.add(ChatMessage(
-            text: initialPrompt,
+            text: response,
             isUser: false,
+            step: 1,
           ));
           _isTyping = false;
         });
         _scrollToBottom();
-        return;
       }
-      
-      print("Translating to: $_selectedLanguage"); // Debug
-      
-      // Translate prompt to user's selected language
-      final translatedPrompt = await SarvamService.translateText(
-        inputText: initialPrompt,
-        sourceLanguage: 'English',
-        targetLanguage: _selectedLanguage,
-      );
-      
-      print("Translated prompt: $translatedPrompt"); // Debug
-      
-      // Verify that the translated text is different from the original
-      if (translatedPrompt == initialPrompt) {
-        print("WARNING: Translation returned same text as original!"); // Debug
-      }
-
-      setState(() {
-        _messages.add(ChatMessage(
-          text: translatedPrompt,
-          isUser: false,
-          originalText: initialPrompt, // Store original English text for context building
-        ));
-        _isTyping = false;
-      });
-      _scrollToBottom();
     } catch (e) {
-      print("Translation error details: $e"); // Debug
-      _handleError('Failed to start assessment: $e');
+      print("Error starting assessment: $e");
+      _handleError("Couldn't start assessment. Please check your internet connection and try again.");
     }
   }
 
-  Future<String> _getInitialPrompt() async {
-    return """
-I'm going to ask you a series of questions to assess your mental health. 
-Please answer honestly as this will help me understand your symptoms better.
+  Future<void> _handleUserInput(String input) async {
+    if (input.trim().isEmpty) return;
 
-Let's start with a general question:
-How have you been feeling emotionally over the past two weeks?
-    """;
-  }
-
-Future<void> _handleUserInput(String userInput) async {
-  if (userInput.trim().isEmpty) return;
-
-  // Add user message to chat
-  setState(() {
-    _messages.add(ChatMessage(
-      text: userInput,
-      isUser: true,
-    ));
-    _isTyping = true;
-    _userInputController.clear();
-  });
-  _scrollToBottom();
-
-  try {
-    // Step 1: Translate user input to English for processing (if needed)
-    String translatedUserInput = userInput;
-    if (_selectedLanguage != 'English') {
-      print("Translating user input from $_selectedLanguage to English");
-      translatedUserInput = await SarvamService.translateText(
-        inputText: userInput,
-        sourceLanguage: _selectedLanguage,
-        targetLanguage: 'English',
-      );
-      print("Translated user input: $translatedUserInput");
-    }
-
-    // Step 2: Process with Gemini (in English)
-    final assessmentContext = _buildAssessmentContext();
-    print("Sending to Gemini: $translatedUserInput");
-    String aiResponse = await GeminiService.getResponse(
-      translatedUserInput, 
-      assessmentContext,
-    );
-    print("Received from Gemini: ${aiResponse.substring(0, min(50, aiResponse.length))}...");
-
-    // Check if assessment is complete
-    if (_isAssessmentComplete(aiResponse)) {
-      await _showAssessmentResult(aiResponse);
-      return;
-    }
-
-    // Step 3: Store original response and prepare for translation
-    final originalAiResponse = aiResponse;
-    String displayResponse = aiResponse;
-    
-    // Step 4: Translate AI response to user's language if needed
-    if (_selectedLanguage != 'English') {
-      print("Translating AI response to $_selectedLanguage");
-      displayResponse = await SarvamService.translateAIResponse(
-        englishResponse: originalAiResponse,
-        targetLanguage: _selectedLanguage,
-      );
-      
-      print("Original AI response (first 50 chars): ${originalAiResponse.substring(0, min(50, originalAiResponse.length))}...");
-      print("Translated AI response (first 50 chars): ${displayResponse.substring(0, min(50, displayResponse.length))}...");
-      
-      // Verify translation actually happened
-      if (displayResponse == originalAiResponse) {
-        print("WARNING: Translation failed - response unchanged");
-      }
-    }
-
-    // Step 5: Add the (translated) AI response to chat
+    // Add user message to chat
     setState(() {
       _messages.add(ChatMessage(
-        text: displayResponse,
+        text: input,
+        isUser: true,
+      ));
+      _isTyping = true;
+      _userInputController.clear();
+      _assessmentStep++;
+    });
+    _scrollToBottom();
+
+    try {
+      // Build context from conversation history
+      final conversationContext = _buildConversationContext();
+      
+      // Get response from Gemini in selected language
+      final response = await GeminiService.getResponse(
+        input,
+        conversationContext,
+        language: _selectedLanguage != 'English' ? _languageCodes[_selectedLanguage] ?? 'en' : 'en',
+      );
+
+      // Check if assessment is complete
+      if (_isAssessmentComplete(response)) {
+        await _processAssessmentResult(response);
+        return;
+      }
+
+      // Add AI response to chat
+      if (mounted) {
+        setState(() {
+          _messages.add(ChatMessage(
+            text: response,
+            isUser: false,
+            step: _assessmentStep,
+          ));
+          _isTyping = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      print("Error processing response: $e");
+      _handleError("I couldn't process your response. Please try again.");
+    }
+  }
+
+  String _buildConversationContext() {
+    String context = "You are conducting a mental health assessment. The conversation so far:\n\n";
+    
+    for (final message in _messages) {
+      final role = message.isUser ? "User" : "Assistant";
+      context += "$role: ${message.text}\n\n";
+    }
+    
+    context += """
+Continue the assessment by responding to the user's last message. Be empathetic and conversational.
+
+Ask one follow-up question at a time to gather more information about their mental health. Make your questions specific and relevant to what they've shared.
+
+After you've asked about 8-10 questions total (we're currently on question ${_assessmentStep}), provide your assessment by starting your response with "ASSESSMENT_COMPLETE:" followed by a summary of potential mental health concerns.
+
+Your assessment should:
+1. Mention possible conditions their symptoms might align with
+2. Emphasize this is not a clinical diagnosis
+3. Recommend they consult a professional for proper evaluation
+4. Suggest 2-3 self-care strategies that might help
+
+Keep your responses concise and clear.
+""";
+    
+    return context;
+  }
+
+  bool _isAssessmentComplete(String response) {
+    return response.contains('ASSESSMENT_COMPLETE:') || 
+           response.contains('ASSESSMENT COMPLETE:') ||
+           response.contains('Assessment complete:');
+  }
+
+  Future<void> _processAssessmentResult(String response) async {
+    String assessmentText;
+    
+    // Extract assessment content
+    if (response.contains('ASSESSMENT_COMPLETE:')) {
+      assessmentText = response.split('ASSESSMENT_COMPLETE:')[1].trim();
+    } else if (response.contains('ASSESSMENT COMPLETE:')) {
+      assessmentText = response.split('ASSESSMENT COMPLETE:')[1].trim();
+    } else if (response.contains('Assessment complete:')) {
+      assessmentText = response.split('Assessment complete:')[1].trim();
+    } else {
+      assessmentText = response;
+    }
+    
+    // Create assessment result object
+    final result = AssessmentResult(
+      rawAssessment: assessmentText,
+      translatedAssessment: _selectedLanguage != 'English' ? assessmentText : null,
+      mainCondition: _parseMainCondition(assessmentText),
+      recommendedActions: _parseRecommendedActions(assessmentText),
+      date: DateTime.now(),
+    );
+
+    // Save result to database
+    try {
+      await _saveAssessmentResult(result);
+    } catch (e) {
+      print("Error saving assessment: $e");
+      // Continue even if saving fails
+    }
+
+    // Show completion message
+    setState(() {
+      _messages.add(ChatMessage(
+        text: "Thank you for completing the assessment! I'm preparing your results...",
         isUser: false,
-        originalText: originalAiResponse, // Store original English text for context
+        isHighlighted: true,
       ));
       _isTyping = false;
     });
     _scrollToBottom();
-  } catch (e) {
-    print("Error in handleUserInput: $e");
-    _handleError('Error processing your response: $e');
-  }
-}
-
-// Add this helper function
-int min(int a, int b) => a < b ? a : b;
-
-  String _buildAssessmentContext() {
-    // Build the conversation history for context
-    String conversationHistory = '';
     
-    // Include all messages in their ORIGINAL ENGLISH form for Gemini to process
-    for (int i = 0; i < _messages.length; i++) {
-      final message = _messages[i];
-      final role = message.isUser ? 'USER' : 'ASSISTANT';
-      
-      // For accurate context, we MUST use the original English content
-      // This is critical - we need to use the original English text, not the translated version
-      String messageText = message.originalText ?? message.text;
-      conversationHistory += '$role: $messageText\n';
-    }
-
-    // Additional hint about the language
-    String languageContext = _selectedLanguage != 'English' 
-        ? "NOTE: The user is communicating in $_selectedLanguage and their messages have been translated to English for you. Your responses will be translated to $_selectedLanguage before being shown to the user. Please phrase your questions and responses in a way that will translate naturally to $_selectedLanguage.\n\n"
-        : "";
-
-    // Instructions for the AI model
-    return '''
-You are an AI mental health assessment assistant. Your task is to conduct a diagnostic assessment to determine if the user might have symptoms related to common mental health disorders like anxiety, depression, ADHD, OCD, PTSD, or bipolar disorder.
-
-$languageContext
-Ask questions one at a time, and analyze the user's responses to guide the conversation. Be empathetic and professional. Don't provide a diagnosis until you've asked at least 8-10 comprehensive questions.
-
-If the user's responses indicate no significant mental health concerns, you should acknowledge that. Never jump to conclusions or diagnose someone based on limited information.
-
-Conversation history so far:
-$conversationHistory
-
-After gathering sufficient information, provide a summary of potential conditions the user's symptoms might align with, emphasizing that this is not a clinical diagnosis and they should consult a mental health professional for a proper evaluation.
-
-When you have gathered enough information and are ready to provide a preliminary assessment, begin your final response with "ASSESSMENT_COMPLETE:" followed by your analysis.
-''';
-  }
-
-  bool _isAssessmentComplete(String response) {
-    return response.contains('ASSESSMENT_COMPLETE:');
-  }
-
-  Future<void> _showAssessmentResult(String response) async {
-  // Extract the assessment part
-  final assessmentText = response.split('ASSESSMENT_COMPLETE:')[1].trim();
-  
-  String translatedAssessment = assessmentText;
-  
-  // Translate the assessment if not in English
-  if (_selectedLanguage != 'English') {
-    print("Translating final assessment to $_selectedLanguage");
-    translatedAssessment = await SarvamService.translateAIResponse(
-      englishResponse: assessmentText,
-      targetLanguage: _selectedLanguage,
-    );
-    
-    print("Original assessment (first 50 chars): ${assessmentText.substring(0, min(50, assessmentText.length))}...");
-    print("Translated assessment (first 50 chars): ${translatedAssessment.substring(0, min(50, translatedAssessment.length))}...");
-  }
-  
-  // Parse the assessment to determine main potential condition
-  final result = AssessmentResult(
-    rawAssessment: assessmentText,
-    translatedAssessment: _selectedLanguage != 'English' ? translatedAssessment : null,
-    mainCondition: _parseMainCondition(assessmentText),
-    recommendedActions: _parseRecommendedActions(assessmentText),
-    date: DateTime.now(),
-  );
-
-  // Save the assessment result to Supabase
-  await _saveAssessmentResult(result);
-
-  // Navigate to result screen
-  if (mounted) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AssessmentResultScreen(
-          result: result,
-          selectedLanguage: _selectedLanguage,
+    // Navigate to results screen after brief delay
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AssessmentResultScreen(
+            result: result,
+            selectedLanguage: _selectedLanguage,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
   String _parseMainCondition(String assessmentText) {
-    // This is a simplified approach - you would want more sophisticated parsing
-    // based on the structure of Gemini's responses
     final conditions = [
-      'Anxiety',
-      'Depression',
-      'ADHD',
-      'OCD',
-      'PTSD',
-      'Bipolar Disorder',
-      'No significant mental health concerns'
+      'Anxiety', 'Depression', 'ADHD', 'OCD', 'PTSD', 
+      'Bipolar Disorder', 'Generalized Anxiety Disorder',
+      'Social Anxiety', 'Panic Disorder', 'No significant mental health concerns'
     ];
     
-    for (var condition in conditions) {
+    for (final condition in conditions) {
       if (assessmentText.contains(condition)) {
         return condition;
       }
@@ -406,117 +318,184 @@ When you have gathered enough information and are ready to provide a preliminary
   }
 
   List<String> _parseRecommendedActions(String assessmentText) {
-    // Default recommendations - in a real app, you'd parse these from the AI response
-    return [
-      'Consult with a mental health professional for a proper diagnosis',
-      'Practice self-care and stress management techniques',
-      'Track your symptoms and mood over time'
+    final List<String> recommendations = [];
+    
+    // Look for recommendations phrases
+    final recommendationPatterns = [
+      RegExp(r'recommend[s]?\s+([\w\s\.,]+)\.', caseSensitive: false),
+      RegExp(r'suggest[s]?\s+([\w\s\.,]+)\.', caseSensitive: false),
     ];
+    
+    for (final pattern in recommendationPatterns) {
+      final matches = pattern.allMatches(assessmentText);
+      for (final match in matches) {
+        if (match.group(1) != null && match.group(1)!.length > 10) {
+          recommendations.add(match.group(1)!.trim());
+        }
+      }
+    }
+    
+    // If no specific recommendations found, provide general ones
+    if (recommendations.isEmpty) {
+      recommendations.addAll([
+        'Consider consulting with a mental health professional',
+        'Practice regular self-care and stress management techniques',
+        'Maintain a journal to track symptoms and mood changes',
+      ]);
+    }
+    
+    return recommendations;
   }
 
   Future<void> _saveAssessmentResult(AssessmentResult result) async {
-    try {
-      final currentUser = SupabaseService.client.auth.currentUser;
-      if (currentUser != null) {
-        await SupabaseService.client.from('assessment_results').insert({
-          'user_id': currentUser.id,
-          'main_condition': result.mainCondition,
-          'raw_assessment': result.rawAssessment,
-          'translated_assessment': result.translatedAssessment,
-          'language': _selectedLanguage,
-          'date': result.date.toIso8601String(),
-        });
-      }
-    } catch (e) {
-      print('Error saving assessment result: $e');
+    final currentUser = SupabaseService.client.auth.currentUser;
+    if (currentUser != null) {
+      await SupabaseService.client.from('assessment_results').insert({
+        'user_id': currentUser.id,
+        'main_condition': result.mainCondition,
+        'raw_assessment': result.rawAssessment,
+        'translated_assessment': result.translatedAssessment,
+        'recommended_actions': result.recommendedActions,
+        'language': _selectedLanguage,
+        'date': result.date.toIso8601String(),
+      });
     }
   }
 
-  void _handleError(String errorMessage) {
-    setState(() {
-      _isTyping = false;
-      _messages.add(ChatMessage(
-        text: _uiStrings['errorMessage'] ?? 'Sorry, there was an error. Please try again.',
-        isUser: false,
-      ));
-    });
-    _scrollToBottom();
-    print(errorMessage);
+  void _handleError(String message) {
+    if (mounted) {
+      setState(() {
+        _messages.add(ChatMessage(
+          text: message,
+          isUser: false,
+          isError: true,
+        ));
+        _isTyping = false;
+      });
+      _scrollToBottom();
+    }
   }
 
-  void _changeLanguage() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_uiStrings['selectLanguage'] ?? 'Select Language'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: MediaQuery.of(context).size.height * 0.5,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _availableLanguages.length,
-            itemBuilder: (context, index) {
-              final isSelected = _selectedLanguage == _availableLanguages[index];
-              return Card(
-                elevation: isSelected ? 3 : 1,
-                color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
-                margin: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                child: ListTile(
-                  leading: isSelected 
-                    ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor)
-                    : Icon(Icons.language),
-                  title: Text(_availableLanguages[index]),
-                  onTap: () {
-                    Navigator.pop(context);
-                    
-                    // Only restart if language changed
-                    if (_selectedLanguage != _availableLanguages[index]) {
-                      setState(() {
-                        _selectedLanguage = _availableLanguages[index];
-                        _messages.clear();
-                      });
-                      _updateUIStrings();
-                      _startAssessment();
-                    }
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
+  void _toggleLanguageSelector() {
+    setState(() {
+      _showLanguageSelector = !_showLanguageSelector;
+    });
+  }
+
+  void _changeLanguage(String language) {
+    if (_selectedLanguage != language) {
+      setState(() {
+        _selectedLanguage = language;
+        _showLanguageSelector = false;
+        
+        // Clear existing messages and reset state
+        _messages.clear();
+        _isTyping = true;
+        _assessmentInProgress = true;
+        _assessmentStep = 0;
+      });
+      
+      // Show language change notification
+      _showSnackBar("Assessment will restart in $language");
+      
+      // Start a fresh assessment in the new language
+      _startAssessment();
+    } else {
+      setState(() {
+        _showLanguageSelector = false;
+      });
+    }
   }
 
   void _toggleListening() async {
-    if (_speechToTextService.isListening) {
-      _speechToTextService.stopListening();
-      setState(() {
-        _isListening = false;
-      });
+    if (_isListening) {
+      _speechService.stopListening();
+      _cancelSoundLevelSimulation();
     } else {
-      await _speechToTextService.startListening(
+      // Request permissions first
+      bool hasPermission = await _speechService.requestPermissions();
+      if (!hasPermission) {
+        _showSnackBar("Microphone permission is required for speech recognition");
+        return;
+      }
+      
+      await _speechService.startListening(
         selectedLanguage: _selectedLanguage,
         onListeningStarted: () {
           setState(() {
             _isListening = true;
+            _userInputController.text = '';
           });
+          _startSoundLevelSimulation();
         },
         onListeningFinished: () {
           setState(() {
             _isListening = false;
           });
+          _cancelSoundLevelSimulation();
         },
       );
     }
   }
-  
+
+  void _startSoundLevelSimulation() {
+    _soundLevelTimer?.cancel();
+    _soundLevelTimer = Timer.periodic(Duration(milliseconds: 100), (timer) {
+      if (mounted) {
+        setState(() {
+          // Create a realistic microphone sound level simulation
+          _soundLevel = 0.3 + (math.Random().nextDouble() * 0.7);
+        });
+      }
+    });
+  }
+
+  void _cancelSoundLevelSimulation() {
+    _soundLevelTimer?.cancel();
+    _soundLevelTimer = null;
+    if (mounted) {
+      setState(() {
+        _soundLevel = 0.0;
+      });
+    }
+  }
+
+  void _speakMessage(int index) async {
+    final message = _messages[index];
+    
+    // Don't speak if it's a user message
+    if (message.isUser) return;
+    
+    // If already speaking this message, stop it
+    if (_isSpeaking && _speakingMessageIndex == index) {
+      await _speechService.stopSpeaking();
+      setState(() {
+        _isSpeaking = false;
+        _speakingMessageIndex = null;
+      });
+      return;
+    }
+    
+    // Stop any ongoing speech
+    if (_isSpeaking) {
+      await _speechService.stopSpeaking();
+    }
+    
+    // Start speaking the message
+    setState(() {
+      _isSpeaking = true;
+      _speakingMessageIndex = index;
+    });
+    
+    await _speechService.speak(message.text, _selectedLanguage);
+    
+    // Update state when speaking finishes
+    setState(() {
+      _isSpeaking = false;
+      _speakingMessageIndex = null;
+    });
+  }
+
   void _scrollToBottom() {
     Future.delayed(Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -532,299 +511,796 @@ When you have gathered enough information and are ready to provide a preliminary
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('AI Mental Health Assessment'),
-        elevation: 2,
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Theme.of(context).primaryColor.withOpacity(0.05),
-                Colors.white,
-              ],
+      body: Stack(
+        children: [
+          // Main gradient background
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Theme.of(context).primaryColor.withOpacity(0.1),
+                  Colors.white,
+                ],
+              ),
             ),
           ),
-          child: SafeArea(
+          
+          // Main content
+          SafeArea(
             child: Column(
               children: [
-                // Enhanced Language selector banner
-                Container(
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.translate, 
-                        color: Theme.of(context).primaryColor),
-                      SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Current Language', 
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                          SizedBox(height: 2),
-                          Text(_selectedLanguage, 
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        ],
-                      ),
-                      Spacer(),
-                      ElevatedButton.icon(
-                        onPressed: _changeLanguage,
-                        icon: Icon(Icons.language, size: 18),
-                        label: Text('Change'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // App bar
+                _buildCustomAppBar(),
                 
-                // Rest of your UI (chat messages, etc.)
+                // Progress indicator
+                _buildProgressIndicator(),
+                
+                // Messages area
                 Expanded(
                   child: _messages.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.psychology, size: 64, color: Colors.blue.shade300),
-                          SizedBox(height: 16),
-                          Text('Starting assessment...', style: TextStyle(fontSize: 16)),
-                          if (_isTyping)
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: LinearProgressIndicator(),
-                            ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        return _buildMessageBubble(_messages[index]);
-                      },
-                    ),
+                    ? _buildWelcomeScreen()
+                    : _buildMessageList(),
                 ),
                 
                 // AI typing indicator
-                if (_isTyping)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      children: [
-                        Text(
-                          _uiStrings['aiTyping'] ?? 'AI is typing...',
-                          style: TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                if (_isTyping) _buildTypingIndicator(),
                 
                 // Input area
                 _buildInputArea(),
               ],
             ),
           ),
-        ),
+          
+          // Language selector overlay (if visible)
+          if (_showLanguageSelector) _buildLanguageSelector(),
+        ],
       ),
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
-    return Align(
-      alignment: message.isUser
-          ? Alignment.centerRight
-          : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8.0),
-        padding: const EdgeInsets.all(16.0),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
-        ),
-        decoration: BoxDecoration(
-          color: message.isUser
-              ? Theme.of(context).primaryColor
-              : Colors.white,
-          borderRadius: BorderRadius.circular(20.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-              offset: Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!message.isUser)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Text(
-                  'AI Assistant',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-              ),
-            Text(
-              message.text,
-              style: TextStyle(
-                color: message.isUser ? Colors.white : Colors.black87,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputArea() {
+  Widget _buildCustomAppBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8.0, 12.0, 8.0, 16.0),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).primaryColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, -1),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
-          // Microphone button for speech input
+          // Logo or icon
           Container(
+            padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _isListening 
-                ? Colors.red.withOpacity(0.1)
-                : Colors.grey.withOpacity(0.1),
+              color: Colors.white.withOpacity(0.2),
             ),
-            child: IconButton(
-              icon: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                color: _isListening 
-                  ? Colors.red 
-                  : (_speechEnabled ? Theme.of(context).primaryColor : Colors.grey),
-                size: 28,
-              ),
-              onPressed: _speechEnabled ? _toggleListening : null,
-              tooltip: _speechEnabled 
-                  ? (_isListening ? 'Stop listening' : 'Start speaking') 
-                  : 'Speech recognition unavailable',
+            child: Icon(
+              Icons.psychology,
+              color: Colors.white,
+              size: 24,
             ),
           ),
-          SizedBox(width: 8),
+          SizedBox(width: 12),
+          
+          // Title
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24.0),
-                color: Colors.grey[100],
-                border: Border.all(
-                  color: _isListening ? Colors.red.withOpacity(0.5) : Colors.transparent,
-                  width: 1.5,
-                ),
-              ),
-              child: TextField(
-                controller: _userInputController,
-                decoration: InputDecoration(
-                  hintText: _isListening 
-                      ? '${_uiStrings['listeningHint'] ?? 'Listening...'} ($_selectedLanguage)' 
-                      : _uiStrings['typingHint'] ?? 'Type your response...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24.0),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 12.0,
-                  ),
-                  suffixIcon: _userInputController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          setState(() {
-                            _userInputController.clear();
-                          });
-                        },
-                      )
-                    : null,
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                onSubmitted: _handleUserInput,
-                enabled: !_isListening && !_isTyping, // Disable while listening or AI is typing
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
+            child: Text(
+              "Mental Health Assessment",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          SizedBox(width: 8.0),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withBlue(255)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).primaryColor.withOpacity(0.3),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
+          
+          // Language selector button
+          IconButton(
+            onPressed: _toggleLanguageSelector,
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.language, color: Colors.white),
+                SizedBox(width: 4),
+                Text(
+                  _selectedLanguage,
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ],
             ),
-            child: IconButton(
-              icon: Icon(Icons.send, color: Colors.white),
-              onPressed: (_userInputController.text.isNotEmpty && !_isTyping) 
-                ? () => _handleUserInput(_userInputController.text)
-                : null,
-              disabledColor: Colors.white.withOpacity(0.5),
+            tooltip: "Change language",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressIndicator() {
+    // Show progress indicator only during assessment
+    if (!_assessmentInProgress || _messages.isEmpty) return SizedBox();
+    
+    final int totalSteps = 10;  // Typical assessment takes about 10 steps
+    final double progress = _assessmentStep / totalSteps;
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Assessment Progress",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                ),
+              ),
+              Text(
+                "${(_assessmentStep / totalSteps * 100).round()}%",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              minHeight: 6,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeScreen() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Replace the Lottie animation with a Flutter built-in animation
+          Container(
+            height: 120,
+            width: 120,
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: SizedBox(
+                height: 80,
+                width: 80,
+                child: CircularProgressIndicator(
+                  strokeWidth: 8,
+                  color: Theme.of(context).primaryColor,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ).animate().fade(duration: 600.ms).scale(
+            begin: Offset(0.8, 0.8),
+            end: Offset(1.0, 1.0),
+            duration: 600.ms,
+            curve: Curves.elasticOut,
+          ),
+          SizedBox(height: 24),
+          Text(
+            "Starting your assessment...",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          SizedBox(height: 16),
+          if (_isTyping)
+            SizedBox(
+              width: 160,
+              child: LinearProgressIndicator(
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).primaryColor,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageList() {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: EdgeInsets.all(16),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final message = _messages[index];
+        return _buildChatBubble(message);
+      },
+    );
+  }
+
+  Widget _buildChatBubble(ChatMessage message) {
+    final bool isCurrentlySpeaking = !message.isUser && _isSpeaking && _messages.indexOf(message) == _speakingMessageIndex;
+    
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: Align(
+        alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment: message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            if (!message.isUser && message.step != null)
+              Padding(
+                padding: EdgeInsets.only(left: 54, bottom: 4),
+                child: Text(
+                  "Question ${message.step}",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+            
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Avatar for AI
+                if (!message.isUser)
+                  Container(
+                    margin: EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.psychology,
+                      color: Theme.of(context).primaryColor,
+                      size: 22,
+                    ),
+                  ),
+                
+                // Message bubble
+                Flexible(
+                  child: Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: message.isUser
+                          ? Theme.of(context).primaryColor
+                          : message.isError
+                              ? Colors.red.shade50
+                              : message.isHighlighted
+                                  ? Colors.green.shade50
+                                  : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      message.text,
+                      style: TextStyle(
+                        color: message.isUser
+                            ? Colors.white
+                            : message.isError
+                                ? Colors.red.shade800
+                                : message.isHighlighted
+                                    ? Colors.green.shade800
+                                    : Colors.black87,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Add a speak button for AI messages
+                if (!message.isUser)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: GestureDetector(
+                      onTap: () => _speakMessage(_messages.indexOf(message)),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: isCurrentlySpeaking 
+                              ? Theme.of(context).primaryColor
+                              : Theme.of(context).primaryColor.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isCurrentlySpeaking ? Icons.stop : Icons.volume_up,
+                          color: isCurrentlySpeaking
+                              ? Colors.white
+                              : Theme.of(context).primaryColor,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                
+                // User avatar 
+                if (message.isUser)
+                  Container(
+                    margin: EdgeInsets.only(left: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.person,
+                      color: Theme.of(context).primaryColor,
+                      size: 22,
+                    ),
+                  ),
+              ],
+            ).animate().fade(duration: 300.ms).slideY(begin: 0.2, end: 0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      alignment: Alignment.centerLeft,
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            padding: EdgeInsets.all(6),
+            child: Icon(
+              Icons.psychology,
+              color: Theme.of(context).primaryColor,
+              size: 18,
+            ),
+          ),
+          SizedBox(width: 12),
+          _buildPulsingDots(),
+        ],
+      ),
+    ).animate().fade(duration: 200.ms);
+  }
+
+  Widget _buildPulsingDots() {
+    return Row(
+      children: List.generate(3, (index) {
+        return AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, child) {
+            final double delay = index / 3;
+            final double value = (((_pulseController.value + delay) % 1.0) < 0.5) ? 1.0 : 0.5;
+            
+            return Container(
+              margin: EdgeInsets.symmetric(horizontal: 2),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).primaryColor.withOpacity(value),
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Speech recognition indicator
+          if (_isListening)
+            Container(
+              margin: EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  _buildPulsingMic(),
+                  SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Listening in $_selectedLanguage...",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                      if (_userInputController.text.isNotEmpty)
+                        Text(
+                          _userInputController.text,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                  Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.stop_circle, color: Colors.red),
+                    onPressed: _toggleListening,
+                    tooltip: 'Stop listening',
+                  ),
+                ],
+              ),
+            ),
+            
+          // Input row
+          Row(
+            children: [
+              // Mic button
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isListening
+                      ? Colors.red.shade100
+                      : Theme.of(context).primaryColor.withOpacity(0.1),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    color: _isListening
+                        ? Colors.red
+                        : Theme.of(context).primaryColor,
+                  ),
+                  onPressed: _speechEnabled ? _toggleListening : null,
+                  tooltip: _speechEnabled
+                      ? 'Start speaking'
+                      : 'Speech recognition unavailable',
+                ),
+              ),
+              SizedBox(width: 8),
+              
+              // Text field
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _isTyping
+                          ? Colors.grey.shade300
+                          : Colors.transparent,
+                      width: 1,
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _userInputController,
+                    decoration: InputDecoration(
+                      hintText: _isListening
+                          ? 'Listening...'
+                          : 'Type your response...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      isDense: true,
+                    ),
+                    enabled: !_isTyping && !_isListening,
+                    maxLines: null,
+                    textCapitalization: TextCapitalization.sentences,
+                    onSubmitted: _handleUserInput,
+                    textInputAction: TextInputAction.send,
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+              
+              // Send button
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).primaryColor,
+                      Theme.of(context).primaryColor.withBlue(
+                            (Theme.of(context).primaryColor.blue + 40).clamp(0, 255),
+                          ),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).primaryColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.send, color: Colors.white),
+                  onPressed: (_userInputController.text.isNotEmpty && !_isTyping)
+                      ? () => _handleUserInput(_userInputController.text)
+                      : null,
+                  disabledColor: Colors.white.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPulsingMic() {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        // Use the simulated sound level to determine the size of the inner circle
+        final double innerSize = _soundLevel > 0 
+            ? 20 + (_soundLevel * 16) 
+            : 20 + 8 * _pulseController.value;
+            
+        // Also use the sound level for the opacity
+        final double opacity = _soundLevel > 0
+            ? 0.8 - (_soundLevel * 0.3)
+            : 0.8 - 0.4 * _pulseController.value;
+        
+        return Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.red.withOpacity(0.1),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer wave circle - subtle animation
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.3 * _pulseController.value),
+                    width: 2,
+                  ),
+                ),
+              ),
+              
+              // Inner active circle
+              Container(
+                width: innerSize,
+                height: innerSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.red.withOpacity(opacity),
+                ),
+                child: Icon(
+                  Icons.mic,
+                  color: Colors.white,
+                  size: 14 + 3 * (_soundLevel > 0 ? _soundLevel : _pulseController.value),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageSelector() {
+    return GestureDetector(
+      onTap: _toggleLanguageSelector, // Close by tapping outside
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        color: Colors.black.withOpacity(0.4),
+        child: Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.85,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.language, color: Colors.white),
+                      SizedBox(width: 12),
+                      Text(
+                        "Select Language",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: _toggleLanguageSelector,
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Language list (scrollable)
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.5,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: _languageCodes.keys.map((language) {
+                        final isSelected = _selectedLanguage == language;
+                        return InkWell(
+                          onTap: () => _changeLanguage(language),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                  : null,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey.shade200,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected
+                                        ? Theme.of(context).primaryColor.withOpacity(0.2)
+                                        : Colors.grey.shade100,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      language.substring(0, 2),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? Theme.of(context).primaryColor
+                                            : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Text(
+                                  language,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected
+                                        ? Theme.of(context).primaryColor
+                                        : Colors.black87,
+                                  ),
+                                ),
+                                Spacer(),
+                                if (isSelected)
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                
+                // Action buttons
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _toggleLanguageSelector,
+                        child: Text("Cancel"),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => _changeLanguage(_selectedLanguage),
+                        child: Text("Confirm"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ).animate().scale(
+                begin: Offset(0.8, 0.8),
+                end: Offset(1.0, 1.0),
+                duration: 200.ms,
+                curve: Curves.easeOut,
+              ),
+        ),
       ),
     );
   }
@@ -833,11 +1309,15 @@ When you have gathered enough information and are ready to provide a preliminary
 class ChatMessage {
   final String text;
   final bool isUser;
-  final String? originalText; // Store original English text for translation context
-
+  final bool isError;
+  final bool isHighlighted;
+  final int? step;
+  
   ChatMessage({
-    required this.text, 
-    required this.isUser, 
-    this.originalText,
+    required this.text,
+    required this.isUser,
+    this.isError = false,
+    this.isHighlighted = false,
+    this.step,
   });
 }

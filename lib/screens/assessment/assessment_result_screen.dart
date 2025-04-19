@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:mantramind/models/assessment_result.dart';
 import 'package:mantramind/services/sarvam_service.dart';
-import 'package:mantramind/screens/home/dashboard_screen.dart'; // Import for navigation
+import 'package:mantramind/screens/home/dashboard_screen.dart';
 
 class AssessmentResultScreen extends StatefulWidget {
   final AssessmentResult result;
   final String selectedLanguage;
 
   const AssessmentResultScreen({
-    Key? key,
     required this.result,
     required this.selectedLanguage,
+    Key? key,
   }) : super(key: key);
 
   @override
-  State<AssessmentResultScreen> createState() => _AssessmentResultScreenState();
+  _AssessmentResultScreenState createState() => _AssessmentResultScreenState();
 }
 
 class _AssessmentResultScreenState extends State<AssessmentResultScreen> {
