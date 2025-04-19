@@ -37,19 +37,19 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> with SingleTick
   // Language support
   String _selectedLanguage = 'English';
   final Map<String, String> _languageCodes = {
-    'English': 'en',
-    'Hindi': 'hi',
-    'Tamil': 'ta',
-    'Telugu': 'te',
-    'Kannada': 'kn',
-    'Malayalam': 'ml',
-    'Bengali': 'bn',
-    'Marathi': 'mr',
-    'Gujarati': 'gu',
-    'Punjabi': 'pa',
-    'Odia': 'or',
-    'Assamese': 'as',
-    'Urdu': 'ur',
+    'English': 'en-US',
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Telugu': 'te-IN',
+    'Kannada': 'kn-IN',
+    'Malayalam': 'ml-IN',
+    'Bengali': 'bn-IN',
+    'Marathi': 'mr-IN',
+    'Gujarati': 'gu-IN',
+    'Punjabi': 'pa-IN',
+    'Odia': 'or-IN',
+    'Assamese': 'as-IN',
+    'Urdu': 'ur-IN',
   };
 
   @override
@@ -126,8 +126,11 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> with SingleTick
     });
 
     try {
-      // Get initial prompt for assessment
-      final prompt = """
+      // Get initial prompt for assessment with explicit language instruction
+      String prompt;
+      
+      if (_selectedLanguage == 'English') {
+        prompt = """
 You are MantraMind's AI mental health assessment assistant. I'd like you to conduct a brief mental health assessment by asking me a series of questions.
 
 Please begin by introducing yourself and asking how I've been feeling emotionally over the past two weeks. Keep your responses conversational, empathetic, and concise (1-3 sentences).
@@ -136,12 +139,31 @@ As we progress, ask questions to assess common mental health conditions like anx
 
 After 8-10 questions, you will have gathered enough information to provide a preliminary, non-diagnostic assessment. When ready with your assessment, start your response with "ASSESSMENT_COMPLETE:" followed by your analysis.
 """;
+      } else {
+        // For non-English languages, add explicit instructions to respond in that language
+        prompt = """
+You are MantraMind's AI mental health assessment assistant. I'd like you to conduct a brief mental health assessment by asking me a series of questions.
 
-      // Get response from Gemini, using language-specific model if needed
+IMPORTANT: Please respond ONLY in ${_selectedLanguage} language throughout our entire conversation. Do NOT use English at all.
+
+Please begin by introducing yourself in ${_selectedLanguage} and asking how I've been feeling emotionally over the past two weeks. Keep your responses conversational, empathetic, and concise (1-3 sentences).
+
+As we progress, ask questions to assess common mental health conditions like anxiety, depression, ADHD, etc. Ask one question at a time.
+
+After 8-10 questions, you will have gathered enough information to provide a preliminary, non-diagnostic assessment. When ready with your assessment, start your response with "ASSESSMENT_COMPLETE:" followed by your analysis.
+
+Remember to use ONLY ${_selectedLanguage} language in all your responses.
+""";
+      }
+
+      // Get response from Gemini, using improved language parameter
+      final languageCode = _languageCodes[_selectedLanguage] ?? 'en-US';
+      print("Starting assessment in $_selectedLanguage (language code: $languageCode)");
+      
       final response = await GeminiService.getResponse(
         prompt, 
-        "You are a mental health assessment assistant",
-        language: _selectedLanguage != 'English' ? _languageCodes[_selectedLanguage] ?? 'en' : 'en',
+        "You are a mental health assessment assistant responding in $_selectedLanguage",
+        language: _selectedLanguage != 'English' ? languageCode.split('-')[0] : 'en',
       );
 
       if (mounted) {
@@ -177,14 +199,45 @@ After 8-10 questions, you will have gathered enough information to provide a pre
     _scrollToBottom();
 
     try {
-      // Build context from conversation history
-      final conversationContext = _buildConversationContext();
+      // Build context from conversation history with explicit language instruction
+      String conversationContext = "You are conducting a mental health assessment. ";
       
-      // Get response from Gemini in selected language
+      if (_selectedLanguage != 'English') {
+        conversationContext += "RESPOND ONLY IN ${_selectedLanguage.toUpperCase()} LANGUAGE. ";
+      }
+      
+      conversationContext += "The conversation so far:\n\n";
+      
+      for (final message in _messages) {
+        final role = message.isUser ? "User" : "Assistant";
+        conversationContext += "$role: ${message.text}\n\n";
+      }
+      
+      conversationContext += """
+Continue the assessment by responding to the user's last message. Be empathetic and conversational.
+${_selectedLanguage != 'English' ? 'IMPORTANT: Respond ONLY in $_selectedLanguage language.' : ''}
+
+Ask one follow-up question at a time to gather more information about their mental health. Make your questions specific and relevant to what they've shared.
+
+After you've asked about 8-10 questions total (we're currently on question ${_assessmentStep}), provide your assessment by starting your response with "ASSESSMENT_COMPLETE:" followed by a summary of potential mental health concerns.
+
+Your assessment should:
+1. Mention possible conditions their symptoms might align with
+2. Emphasize this is not a clinical diagnosis
+3. Recommend they consult a professional for proper evaluation
+4. Suggest 2-3 self-care strategies that might help
+
+${_selectedLanguage != 'English' ? 'Remember to use ONLY $_selectedLanguage language in your response.' : ''}
+Keep your response concise and clear.
+""";
+      
+      // Get response from Gemini with language parameter
       final response = await GeminiService.getResponse(
         input,
         conversationContext,
-        language: _selectedLanguage != 'English' ? _languageCodes[_selectedLanguage] ?? 'en' : 'en',
+        language: _selectedLanguage != 'English' 
+          ? (_languageCodes[_selectedLanguage] ?? 'en-US').split('-')[0] 
+          : 'en',
       );
 
       // Check if assessment is complete
@@ -193,7 +246,7 @@ After 8-10 questions, you will have gathered enough information to provide a pre
         return;
       }
 
-      // Add AI response to chat
+      // Add AI response to chat (properly in requested language)
       if (mounted) {
         setState(() {
           _messages.add(ChatMessage(
@@ -209,33 +262,6 @@ After 8-10 questions, you will have gathered enough information to provide a pre
       print("Error processing response: $e");
       _handleError("I couldn't process your response. Please try again.");
     }
-  }
-
-  String _buildConversationContext() {
-    String context = "You are conducting a mental health assessment. The conversation so far:\n\n";
-    
-    for (final message in _messages) {
-      final role = message.isUser ? "User" : "Assistant";
-      context += "$role: ${message.text}\n\n";
-    }
-    
-    context += """
-Continue the assessment by responding to the user's last message. Be empathetic and conversational.
-
-Ask one follow-up question at a time to gather more information about their mental health. Make your questions specific and relevant to what they've shared.
-
-After you've asked about 8-10 questions total (we're currently on question ${_assessmentStep}), provide your assessment by starting your response with "ASSESSMENT_COMPLETE:" followed by a summary of potential mental health concerns.
-
-Your assessment should:
-1. Mention possible conditions their symptoms might align with
-2. Emphasize this is not a clinical diagnosis
-3. Recommend they consult a professional for proper evaluation
-4. Suggest 2-3 self-care strategies that might help
-
-Keep your responses concise and clear.
-""";
-    
-    return context;
   }
 
   bool _isAssessmentComplete(String response) {
@@ -388,18 +414,27 @@ Keep your responses concise and clear.
         _selectedLanguage = language;
         _showLanguageSelector = false;
         
-        // Clear existing messages and reset state
-        _messages.clear();
+        // Show loading indicator while changing language
         _isTyping = true;
-        _assessmentInProgress = true;
-        _assessmentStep = 0;
       });
       
-      // Show language change notification
-      _showSnackBar("Assessment will restart in $language");
+      // Show language change notification with loading state
+      _showSnackBar("Switching to $language...");
       
-      // Start a fresh assessment in the new language
-      _startAssessment();
+      // Clear existing messages and restart assessment with a slight delay
+      // This gives time for the loading state to be visible
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _messages.clear();
+            _assessmentInProgress = true;
+            _assessmentStep = 0;
+          });
+          
+          // Start a fresh assessment in the new language
+          _startAssessment();
+        }
+      });
     } else {
       setState(() {
         _showLanguageSelector = false;
