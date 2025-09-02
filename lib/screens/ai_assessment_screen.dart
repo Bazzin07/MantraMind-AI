@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mantramind/services/sarvam_service.dart';
 
 class AIAssessmentScreen extends StatefulWidget {
-  const AIAssessmentScreen({Key? key}) : super(key: key);
+  const AIAssessmentScreen({super.key});
 
   @override
   State<AIAssessmentScreen> createState() => _AIAssessmentScreenState();
@@ -107,11 +107,11 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Assessment Complete'),
-        content: Text('Thank you for completing the assessment.'),
+        title: const Text('Assessment Complete'),
+        content: const Text('Thank you for completing the assessment.'),
         actions: [
           TextButton(
-            child: Text('View Results'),
+            child: const Text('View Results'),
             onPressed: () {
               Navigator.of(context).pop();
               // Navigate to results page or show results
@@ -126,7 +126,7 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mental Health Assessment'),
+        title: const Text('Mental Health Assessment'),
         elevation: 0,
         backgroundColor: Theme.of(context).primaryColor,
       ),
@@ -153,16 +153,16 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Select Language',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.grey.shade300),
@@ -170,7 +170,7 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
                         child: DropdownButton<String>(
                           value: selectedLanguage,
                           isExpanded: true,
-                          underline: SizedBox(),
+                          underline: const SizedBox(),
                           items: languages.map((String language) {
                             return DropdownMenuItem<String>(
                               value: language,
@@ -184,10 +184,10 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               Expanded(
                 child: isLoading 
-                  ? Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator())
                   : Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(
@@ -201,20 +201,20 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
                             Row(
                               children: [
                                 Container(
-                                  padding: EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).primaryColor,
                                     shape: BoxShape.circle,
                                   ),
                                   child: Text(
                                     '${currentQuestionIndex + 1}',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                SizedBox(width: 12),
+                                const SizedBox(width: 12),
                                 Text(
                                   'Question ${currentQuestionIndex + 1} of ${translatedQuestions.length}',
                                   style: TextStyle(
@@ -224,15 +224,15 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             Text(
                               translatedQuestions[currentQuestionIndex],
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(height: 24),
+                            const SizedBox(height: 24),
                             Expanded(
                               child: TextField(
                                 controller: answerController,
@@ -247,23 +247,23 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
                                 onPressed: submitAnswer,
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Text(
-                                    'Next',
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Text(
+                                    'Next',
+                                    style: TextStyle(fontSize: 16),
                                   ),
                                 ),
                               ),

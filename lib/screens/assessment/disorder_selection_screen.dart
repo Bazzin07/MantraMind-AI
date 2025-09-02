@@ -284,7 +284,7 @@ class _DisorderSelectionScreenState extends State<DisorderSelectionScreen> {
           elevation: 3,
           shadowColor: Theme.of(context).primaryColor.withOpacity(0.5),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
@@ -296,8 +296,8 @@ class _DisorderSelectionScreenState extends State<DisorderSelectionScreen> {
                 letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(width: 10),
-            const Icon(Icons.arrow_forward_rounded),
+            SizedBox(width: 10),
+            Icon(Icons.arrow_forward_rounded),
           ],
         ),
       ),

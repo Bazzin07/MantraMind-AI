@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mantramind/services/supabase_service.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'package:mantramind/screens/home/profile_screen.dart';
@@ -911,7 +910,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
+              const Text(
                 'AI Assistant Insights',
                 style: TextStyle(
                   color: Colors.white,
@@ -930,7 +929,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
+          const Text(
             'Recommendation:',
             style: TextStyle(
               color: Colors.white,
@@ -955,12 +954,12 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.trending_up, color: Colors.white, size: 18),
+                const Icon(Icons.trending_up, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     aiInsight!['progress'],
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
                       fontStyle: FontStyle.italic,
@@ -1094,7 +1093,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
         const SizedBox(height: 8),
         Text(
           '${(value * multiplier).toInt()}$suffix',
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
@@ -1115,7 +1114,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
   Widget _buildEnhancedTaskItem(Map<String, dynamic> task) {
     final List<bool> progress = List<bool>.from(task['progress']);
     final int completedDays = progress.where((day) => day).length;
-    final double completionRate = progress.isEmpty ? 0 : completedDays / progress.length;
+    
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1188,7 +1187,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                 ),
                 const Spacer(),
                 Text(
-                  '${completedDays}/7 days',
+                  '$completedDays/7 days',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -1453,7 +1452,7 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
             if (index == 1) {
               Navigator.push(
                 context, 
-                MaterialPageRoute(builder: (context) => AIChatScreen()),
+                MaterialPageRoute(builder: (context) => const AIChatScreen()),
               );
             } else if (index == 2) {
               // Navigate to Analytics or Progress screen
@@ -1496,7 +1495,6 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
     int totalActivities = recommendedTasks.length;
     int completedActivities = recommendedTasks.where((task) => 
       task['isCompleted'] == true).length;
-    double completionPercentage = totalActivities > 0 ? completedActivities / totalActivities : 0.0;
     
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -1525,13 +1523,13 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                     padding: const EdgeInsets.all(14.0), // Even padding
                     child: Column(
                       children: [
-                        Row(
+                        const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.local_fire_department, 
                                 color: Colors.orange,
                                 size: 22),
-                            const SizedBox(width: 4), // Reduced spacing
+                            SizedBox(width: 4), // Reduced spacing
                             Text(
                               'Streak',
                               style: TextStyle(
@@ -1573,13 +1571,13 @@ class _DisorderDashboardScreenState extends State<DisorderDashboardScreen> {
                     padding: const EdgeInsets.all(14.0), // Even padding
                     child: Column(
                       children: [
-                        Row(
+                        const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.trending_up, 
                                 color: Colors.green,
                                 size: 22),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Text(
                               'Progress',
                               style: TextStyle(

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mantramind/screens/home/daily_diary_screen.dart';
+import 'package:mantramind/screens/home/mood_tracking_screen.dart';
+import 'package:mantramind/screens/home/self_help_resource_screen.dart';
 
 class FeaturesScreen extends StatelessWidget {
-  const FeaturesScreen({Key? key}) : super(key: key);
+  const FeaturesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +34,7 @@ class FeaturesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Free features section
             _buildSectionHeader('Free Features', Colors.green),
             const SizedBox(height: 16),
@@ -42,8 +45,10 @@ class FeaturesScreen extends StatelessWidget {
               Colors.indigo,
               isLocked: false,
               onTap: () {
-                // Navigate to Daily Diary feature
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => DailyDiaryScreen()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DailyDiaryScreen()));
               },
             ),
             _buildFeatureCard(
@@ -52,7 +57,25 @@ class FeaturesScreen extends StatelessWidget {
               Icons.mood,
               Colors.amber,
               isLocked: false,
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const MoodTrackingScreen()));
+              },
+            ),
+            _buildFeatureCard(
+              'Self-Help Resource',
+              'Articles, tips, and guides to support your wellbeing',
+              Icons.menu_book,
+              Colors.green,
+              isLocked: false,
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const SelfHelpResourceScreen()));
+              },
             ),
             _buildFeatureCard(
               'Breathing Exercises',
@@ -70,9 +93,9 @@ class FeaturesScreen extends StatelessWidget {
               isLocked: false,
               onTap: () {},
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Premium features section
             _buildSectionHeader('Premium Features', Colors.purple),
             const SizedBox(height: 16),
@@ -116,9 +139,9 @@ class FeaturesScreen extends StatelessWidget {
                 _showPremiumDialog(context);
               },
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Upgrade button
             Center(
               child: ElevatedButton(
@@ -127,7 +150,8 @@ class FeaturesScreen extends StatelessWidget {
                   _showPremiumDialog(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   backgroundColor: Colors.purple,
                 ),
                 child: const Text(
@@ -157,7 +181,8 @@ class FeaturesScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(title.contains('Premium') ? Icons.star : Icons.check_circle, color: color),
+          Icon(title.contains('Premium') ? Icons.star : Icons.check_circle,
+              color: color),
           const SizedBox(width: 8),
           Text(
             title,
@@ -231,7 +256,8 @@ class FeaturesScreen extends StatelessWidget {
               ),
               isLocked
                   ? Icon(Icons.lock, color: Colors.grey[400])
-                  : Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
+                  : Icon(Icons.arrow_forward_ios,
+                      color: Colors.grey[400], size: 16),
             ],
           ),
         ),

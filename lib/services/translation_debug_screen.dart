@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mantramind/services/sarvam_service.dart';
 
 class TranslationDebugScreen extends StatefulWidget {
-  const TranslationDebugScreen({Key? key}) : super(key: key);
+  const TranslationDebugScreen({super.key});
 
   @override
   State<TranslationDebugScreen> createState() => _TranslationDebugScreenState();
@@ -86,7 +86,7 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Translation Debug Tool'),
+        title: const Text('Translation Debug Tool'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -94,7 +94,7 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Source Language', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Source Language', style: TextStyle(fontWeight: FontWeight.bold)),
               DropdownButton<String>(
                 value: _selectedSourceLanguage,
                 isExpanded: true,
@@ -113,9 +113,9 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
                   );
                 }).toList(),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               
-              Text('Target Language', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Target Language', style: TextStyle(fontWeight: FontWeight.bold)),
               DropdownButton<String>(
                 value: _selectedTargetLanguage,
                 isExpanded: true,
@@ -134,24 +134,24 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
                   );
                 }).toList(),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               
-              Text('Text to Translate', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Text to Translate', style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(
                 controller: _inputController,
                 maxLines: 3,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Enter text to translate',
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               
               Center(
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _testTranslation,
                   child: _isLoading
-                      ? Row(
+                      ? const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
@@ -166,15 +166,15 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
                             Text('Testing...'),
                           ],
                         )
-                      : Text('Test Translation'),
+                      : const Text('Test Translation'),
                 ),
               ),
               
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               
               if (_apiResponse.isNotEmpty)
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(8),
@@ -182,18 +182,18 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('API Response:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
+                      const Text('API Response:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
                       Text(_apiResponse),
                     ],
                   ),
                 ),
               
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               
               if (_translationResult.isNotEmpty)
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(8),
@@ -202,12 +202,12 @@ class _TranslationDebugScreenState extends State<TranslationDebugScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Translation Result:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
+                      const Text('Translation Result:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
                       Text(_translationResult),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Text('Is Different from Input: ${_translationResult != _inputController.text}', 
-                           style: TextStyle(fontStyle: FontStyle.italic)),
+                           style: const TextStyle(fontStyle: FontStyle.italic)),
                     ],
                   ),
                 ),

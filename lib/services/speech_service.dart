@@ -25,7 +25,7 @@ class SpeechService {
   Stream<String> get errorStream => _errorStreamController.stream;
   
   // Language mapping
-  static Map<String, String> _languageCodes = {
+  static final Map<String, String> _languageCodes = {
     'English': 'en-IN',
     'Hindi': 'hi-IN',
     'Bengali': 'bn-IN',
@@ -107,8 +107,8 @@ class SpeechService {
           }
         },
         localeId: _languageCodes[language] ?? 'en-IN',
-        listenFor: Duration(seconds: 30),
-        pauseFor: Duration(seconds: 3),
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
         partialResults: true,
       );
       

@@ -9,7 +9,7 @@ import 'package:mantramind/services/supabase_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class AIAssessmentScreen extends StatefulWidget {
-  const AIAssessmentScreen({Key? key}) : super(key: key);
+  const AIAssessmentScreen({super.key});
 
   @override
   State<AIAssessmentScreen> createState() => _AIAssessmentScreenState();
@@ -113,7 +113,7 @@ class _AIAssessmentScreenState extends State<AIAssessmentScreen> with SingleTick
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
       behavior: SnackBarBehavior.floating,
-      margin: EdgeInsets.fromLTRB(20, 0, 20, 20),
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
   }
@@ -144,15 +144,15 @@ After 8-10 questions, you will have gathered enough information to provide a pre
         prompt = """
 You are MantraMind's AI mental health assessment assistant. I'd like you to conduct a brief mental health assessment by asking me a series of questions.
 
-IMPORTANT: Please respond ONLY in ${_selectedLanguage} language throughout our entire conversation. Do NOT use English at all.
+IMPORTANT: Please respond ONLY in $_selectedLanguage language throughout our entire conversation. Do NOT use English at all.
 
-Please begin by introducing yourself in ${_selectedLanguage} and asking how I've been feeling emotionally over the past two weeks. Keep your responses conversational, empathetic, and concise (1-3 sentences).
+Please begin by introducing yourself in $_selectedLanguage and asking how I've been feeling emotionally over the past two weeks. Keep your responses conversational, empathetic, and concise (1-3 sentences).
 
 As we progress, ask questions to assess common mental health conditions like anxiety, depression, ADHD, etc. Ask one question at a time.
 
 After 8-10 questions, you will have gathered enough information to provide a preliminary, non-diagnostic assessment. When ready with your assessment, start your response with "ASSESSMENT_COMPLETE:" followed by your analysis.
 
-Remember to use ONLY ${_selectedLanguage} language in all your responses.
+Remember to use ONLY $_selectedLanguage language in all your responses.
 """;
       }
 
@@ -219,7 +219,7 @@ ${_selectedLanguage != 'English' ? 'IMPORTANT: Respond ONLY in $_selectedLanguag
 
 Ask one follow-up question at a time to gather more information about their mental health. Make your questions specific and relevant to what they've shared.
 
-After you've asked about 8-10 questions total (we're currently on question ${_assessmentStep}), provide your assessment by starting your response with "ASSESSMENT_COMPLETE:" followed by a summary of potential mental health concerns.
+After you've asked about 8-10 questions total (we're currently on question $_assessmentStep), provide your assessment by starting your response with "ASSESSMENT_COMPLETE:" followed by a summary of potential mental health concerns.
 
 Your assessment should:
 1. Mention possible conditions their symptoms might align with
@@ -423,7 +423,7 @@ Keep your response concise and clear.
       
       // Clear existing messages and restart assessment with a slight delay
       // This gives time for the loading state to be visible
-      Future.delayed(Duration(milliseconds: 300), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           setState(() {
             _messages.clear();
@@ -475,7 +475,7 @@ Keep your response concise and clear.
 
   void _startSoundLevelSimulation() {
     _soundLevelTimer?.cancel();
-    _soundLevelTimer = Timer.periodic(Duration(milliseconds: 100), (timer) {
+    _soundLevelTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (mounted) {
         setState(() {
           // Create a realistic microphone sound level simulation
@@ -532,11 +532,11 @@ Keep your response concise and clear.
   }
 
   void _scrollToBottom() {
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -597,14 +597,14 @@ Keep your response concise and clear.
 
   Widget _buildCustomAppBar() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -612,21 +612,21 @@ Keep your response concise and clear.
         children: [
           // Logo or icon
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.2),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.psychology,
               color: Colors.white,
               size: 24,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           
           // Title
-          Expanded(
+          const Expanded(
             child: Text(
               "Mental Health Assessment",
               style: TextStyle(
@@ -643,11 +643,11 @@ Keep your response concise and clear.
             icon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.language, color: Colors.white),
-                SizedBox(width: 4),
+                const Icon(Icons.language, color: Colors.white),
+                const SizedBox(width: 4),
                 Text(
                   _selectedLanguage,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ],
             ),
@@ -660,13 +660,13 @@ Keep your response concise and clear.
 
   Widget _buildProgressIndicator() {
     // Show progress indicator only during assessment
-    if (!_assessmentInProgress || _messages.isEmpty) return SizedBox();
+    if (!_assessmentInProgress || _messages.isEmpty) return const SizedBox();
     
-    final int totalSteps = 10;  // Typical assessment takes about 10 steps
+    const int totalSteps = 10;  // Typical assessment takes about 10 steps
     final double progress = _assessmentStep / totalSteps;
     
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -691,7 +691,7 @@ Keep your response concise and clear.
               ),
             ],
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
@@ -731,12 +731,12 @@ Keep your response concise and clear.
               ),
             ),
           ).animate().fade(duration: 600.ms).scale(
-            begin: Offset(0.8, 0.8),
-            end: Offset(1.0, 1.0),
+            begin: const Offset(0.8, 0.8),
+            end: const Offset(1.0, 1.0),
             duration: 600.ms,
             curve: Curves.elasticOut,
           ),
-          SizedBox(height: 24),
+          const SizedBox(height: 24),
           Text(
             "Starting your assessment...",
             style: TextStyle(
@@ -745,7 +745,7 @@ Keep your response concise and clear.
               color: Theme.of(context).primaryColor,
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           if (_isTyping)
             SizedBox(
               width: 160,
@@ -764,7 +764,7 @@ Keep your response concise and clear.
   Widget _buildMessageList() {
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final message = _messages[index];
@@ -777,7 +777,7 @@ Keep your response concise and clear.
     final bool isCurrentlySpeaking = !message.isUser && _isSpeaking && _messages.indexOf(message) == _speakingMessageIndex;
     
     return Padding(
-      padding: EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Align(
         alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
         child: Column(
@@ -785,7 +785,7 @@ Keep your response concise and clear.
           children: [
             if (!message.isUser && message.step != null)
               Padding(
-                padding: EdgeInsets.only(left: 54, bottom: 4),
+                padding: const EdgeInsets.only(left: 54, bottom: 4),
                 child: Text(
                   "Question ${message.step}",
                   style: TextStyle(
@@ -802,12 +802,12 @@ Keep your response concise and clear.
                 // Avatar for AI
                 if (!message.isUser)
                   Container(
-                    margin: EdgeInsets.only(right: 8),
+                    margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
                       color: Theme.of(context).primaryColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    padding: EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(6),
                     child: Icon(
                       Icons.psychology,
                       color: Theme.of(context).primaryColor,
@@ -818,7 +818,7 @@ Keep your response concise and clear.
                 // Message bubble
                 Flexible(
                   child: Container(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: message.isUser
                           ? Theme.of(context).primaryColor
@@ -832,7 +832,7 @@ Keep your response concise and clear.
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),
                           blurRadius: 5,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -881,12 +881,12 @@ Keep your response concise and clear.
                 // User avatar 
                 if (message.isUser)
                   Container(
-                    margin: EdgeInsets.only(left: 8),
+                    margin: const EdgeInsets.only(left: 8),
                     decoration: BoxDecoration(
                       color: Theme.of(context).primaryColor.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    padding: EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(6),
                     child: Icon(
                       Icons.person,
                       color: Theme.of(context).primaryColor,
@@ -903,7 +903,7 @@ Keep your response concise and clear.
 
   Widget _buildTypingIndicator() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
@@ -912,14 +912,14 @@ Keep your response concise and clear.
               color: Theme.of(context).primaryColor.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            padding: EdgeInsets.all(6),
+            padding: const EdgeInsets.all(6),
             child: Icon(
               Icons.psychology,
               color: Theme.of(context).primaryColor,
               size: 18,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           _buildPulsingDots(),
         ],
       ),
@@ -936,7 +936,7 @@ Keep your response concise and clear.
             final double value = (((_pulseController.value + delay) % 1.0) < 0.5) ? 1.0 : 0.5;
             
             return Container(
-              margin: EdgeInsets.symmetric(horizontal: 2),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
               width: 8,
               height: 8,
               decoration: BoxDecoration(
@@ -952,14 +952,14 @@ Keep your response concise and clear.
 
   Widget _buildInputArea() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
-            offset: Offset(0, -2),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -968,8 +968,8 @@ Keep your response concise and clear.
           // Speech recognition indicator
           if (_isListening)
             Container(
-              margin: EdgeInsets.only(bottom: 8),
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.red.shade50,
                 borderRadius: BorderRadius.circular(16),
@@ -978,7 +978,7 @@ Keep your response concise and clear.
               child: Row(
                 children: [
                   _buildPulsingMic(),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1002,9 +1002,9 @@ Keep your response concise and clear.
                         ),
                     ],
                   ),
-                  Spacer(),
+                  const Spacer(),
                   IconButton(
-                    icon: Icon(Icons.stop_circle, color: Colors.red),
+                    icon: const Icon(Icons.stop_circle, color: Colors.red),
                     onPressed: _toggleListening,
                     tooltip: 'Stop listening',
                   ),
@@ -1036,7 +1036,7 @@ Keep your response concise and clear.
                       : 'Speech recognition unavailable',
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               
               // Text field
               Expanded(
@@ -1061,7 +1061,7 @@ Keep your response concise and clear.
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: EdgeInsets.symmetric(
+                      contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
                       ),
@@ -1075,7 +1075,7 @@ Keep your response concise and clear.
                   ),
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               
               // Send button
               Container(
@@ -1095,12 +1095,12 @@ Keep your response concise and clear.
                     BoxShadow(
                       color: Theme.of(context).primaryColor.withOpacity(0.3),
                       blurRadius: 4,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.send, color: Colors.white),
+                  icon: const Icon(Icons.send, color: Colors.white),
                   onPressed: (_userInputController.text.isNotEmpty && !_isTyping)
                       ? () => _handleUserInput(_userInputController.text)
                       : null,
@@ -1188,7 +1188,7 @@ Keep your response concise and clear.
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
                   blurRadius: 10,
-                  offset: Offset(0, 5),
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
@@ -1197,16 +1197,16 @@ Keep your response concise and clear.
               children: [
                 // Header
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.language, color: Colors.white),
-                      SizedBox(width: 12),
-                      Text(
+                      const Icon(Icons.language, color: Colors.white),
+                      const SizedBox(width: 12),
+                      const Text(
                         "Select Language",
                         style: TextStyle(
                           color: Colors.white,
@@ -1214,12 +1214,12 @@ Keep your response concise and clear.
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Spacer(),
+                      const Spacer(),
                       IconButton(
-                        icon: Icon(Icons.close, color: Colors.white),
+                        icon: const Icon(Icons.close, color: Colors.white),
                         onPressed: _toggleLanguageSelector,
                         padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
@@ -1237,7 +1237,7 @@ Keep your response concise and clear.
                         return InkWell(
                           onTap: () => _changeLanguage(language),
                           child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? Theme.of(context).primaryColor.withOpacity(0.1)
@@ -1272,7 +1272,7 @@ Keep your response concise and clear.
                                     ),
                                   ),
                                 ),
-                                SizedBox(width: 16),
+                                const SizedBox(width: 16),
                                 Text(
                                   language,
                                   style: TextStyle(
@@ -1283,7 +1283,7 @@ Keep your response concise and clear.
                                         : Colors.black87,
                                   ),
                                 ),
-                                Spacer(),
+                                const Spacer(),
                                 if (isSelected)
                                   Icon(
                                     Icons.check_circle,
@@ -1300,29 +1300,29 @@ Keep your response concise and clear.
                 
                 // Action buttons
                 Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: _toggleLanguageSelector,
-                        child: Text("Cancel"),
                         style: TextButton.styleFrom(
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
+                        child: Text("Cancel"),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => _changeLanguage(_selectedLanguage),
-                        child: Text("Confirm"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).primaryColor,
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
+                        child: Text("Confirm"),
                       ),
                     ],
                   ),
@@ -1330,8 +1330,8 @@ Keep your response concise and clear.
               ],
             ),
           ).animate().scale(
-                begin: Offset(0.8, 0.8),
-                end: Offset(1.0, 1.0),
+                begin: const Offset(0.8, 0.8),
+                end: const Offset(1.0, 1.0),
                 duration: 200.ms,
                 curve: Curves.easeOut,
               ),

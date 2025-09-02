@@ -10,8 +10,8 @@ class AssessmentResultScreen extends StatefulWidget {
   const AssessmentResultScreen({
     required this.result,
     required this.selectedLanguage,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   _AssessmentResultScreenState createState() => _AssessmentResultScreenState();

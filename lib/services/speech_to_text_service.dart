@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class SpeechToTextService {
@@ -90,7 +89,7 @@ class SpeechToTextService {
     // Stop any ongoing listening
     if (_speech.isListening) {
       await _speech.stop();
-      await Future.delayed(Duration(milliseconds: 200)); // Short delay to ensure proper reset
+      await Future.delayed(const Duration(milliseconds: 200)); // Short delay to ensure proper reset
     }
     
     try {
@@ -104,12 +103,12 @@ class SpeechToTextService {
             _textStreamController.add(result.recognizedWords);
             if (onListeningFinished != null) onListeningFinished();
           } else {
-            _textStreamController.add(result.recognizedWords + " ...");
+            _textStreamController.add("${result.recognizedWords} ...");
           }
         },
         localeId: localeId,
-        listenFor: Duration(seconds: 30),
-        pauseFor: Duration(seconds: 3),
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
         partialResults: true,
         onSoundLevelChange: (level) {
           // Sound level can be used for visualizing microphone activity
@@ -138,7 +137,7 @@ class SpeechToTextService {
   Future<void> speak(String text, String language) async {
     if (_isSpeaking) {
       await stopSpeaking();
-      await Future.delayed(Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 300));
     }
     
     try {

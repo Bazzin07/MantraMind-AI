@@ -84,7 +84,7 @@ If you respond in English, it will be rejected.
                   "$languageInstruction$systemContext\n\nUser input: $userInput";
                   
               // Add short delay before retry
-              await Future.delayed(Duration(milliseconds: 500));
+              await Future.delayed(const Duration(milliseconds: 500));
               continue;
             } else {
               // If still getting English after retries, try one last approach - explicit translation
@@ -137,7 +137,7 @@ $generatedText
           // Handle rate limiting
           print("Rate limited (429). Retrying in 1 second...");
           retryCount++;
-          await Future.delayed(Duration(seconds: 1));
+          await Future.delayed(const Duration(seconds: 1));
           continue;
         } else {
           print("API Error: ${response.statusCode} - ${response.body}");

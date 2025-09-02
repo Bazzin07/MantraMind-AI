@@ -4,7 +4,7 @@ import 'package:mantramind/screens/assessment/diagnised_screen.dart';
 import 'package:mantramind/screens/auth/signup_screen.dart'; // Import the SignupScreen
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();

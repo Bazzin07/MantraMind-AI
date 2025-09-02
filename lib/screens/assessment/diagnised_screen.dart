@@ -4,7 +4,7 @@ import 'package:mantramind/screens/assessment/disorder_selection_screen.dart';
 import 'package:mantramind/screens/assessment/ai_assessment_screen.dart'; // Import your AI assessment scree
 
 class DiagnosedPage extends StatefulWidget {
-  const DiagnosedPage({Key? key}) : super(key: key); // Removed userName parameter
+  const DiagnosedPage({super.key}); // Removed userName parameter
 
   @override
   State<DiagnosedPage> createState() => _DiagnosedPageState();

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mantramind/services/supabase_service.dart';
-import 'package:mantramind/screens/home/dashboard_screen.dart';
 import 'package:intl/intl.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -18,10 +17,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _userReports = [];
   
   // Static premium subscription data for demo
-  bool _isPremium = true;
-  String _subscriptionTier = 'Premium Plus';
-  String _subscriptionExpiry = '2025-05-15';
-  List<String> _premiumFeatures = [
+  final bool _isPremium = true;
+  final String _subscriptionTier = 'Premium Plus';
+  final String _subscriptionExpiry = '2025-05-15';
+  final List<String> _premiumFeatures = [
     'Unlimited disorder tracking',
     'Weekly detailed reports',
     'Therapy session reminders',
@@ -862,7 +861,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class DisorderDashboardScreen extends StatelessWidget {
   final String disorder;
 
-  const DisorderDashboardScreen({Key? key, required this.disorder}) : super(key: key);
+  const DisorderDashboardScreen({super.key, required this.disorder});
 
   @override
   Widget build(BuildContext context) {

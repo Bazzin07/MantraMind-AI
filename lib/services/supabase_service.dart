@@ -44,7 +44,7 @@ class SupabaseService {
       await client.auth.refreshSession();
 
       // Get the current session after refresh
-      final session = await client.auth.currentSession;
+      final session = client.auth.currentSession;
 
       // Get the user from the current session
       final user = session?.user;
@@ -119,12 +119,30 @@ class SupabaseService {
   // Save Disorder Selection
   static Future<void> saveUserDisorder(String disorder) async {
     final user = currentUser;
-    if (user == null) return;
+    if (user == null) {
+      print('saveUserDisorder: No authenticated user');
+      return;
+    }
 
-    await client.from('user_disorders').insert({
-      'user_id': user.id,
-      'disorder': disorder,
-    });
+    try {
+      // Ensure session is fresh
+      await client.auth.refreshSession();
+
+      await client
+          .from('user_disorders')
+          .upsert({
+            'user_id': user.id,
+            'disorder': disorder,
+          }, onConflict: 'user_id')
+          .select()
+          .maybeSingle();
+    } on PostgrestException catch (e) {
+      print('saveUserDisorder RLS error: ${e.message} code=${e.code}');
+      rethrow;
+    } catch (e) {
+      print('saveUserDisorder error: $e');
+      rethrow;
+    }
   }
 
   // Fetch User's Disorder

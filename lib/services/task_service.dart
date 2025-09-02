@@ -3,7 +3,7 @@ import 'package:mantramind/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 
 class TaskService {
-  static final _uuid = Uuid();
+  static const _uuid = Uuid();
   
   static Future<List<UserTask>> getUserTasks(String userId, String disorder) async {
     try {
@@ -37,7 +37,7 @@ class TaskService {
       });
     } catch (e) {
       print('Error creating task: $e');
-      throw e;
+      rethrow;
     }
   }
   
@@ -48,7 +48,7 @@ class TaskService {
       }).eq('id', taskId);
     } catch (e) {
       print('Error completing task: $e');
-      throw e;
+      rethrow;
     }
   }
   

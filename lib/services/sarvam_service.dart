@@ -229,7 +229,7 @@ class SarvamService {
           
           // Add a small delay between paragraph translations to avoid rate limiting
           if (i < paragraphs.length - 1) {
-            await Future.delayed(Duration(milliseconds: 300));
+            await Future.delayed(const Duration(milliseconds: 300));
           }
         }
         
